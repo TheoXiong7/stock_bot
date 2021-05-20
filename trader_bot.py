@@ -8,6 +8,7 @@ import math
 import time
 
 
+
 class Bot():
 
 	watchlist = []
@@ -45,37 +46,47 @@ class Bot():
 		    time_in_force = tif
 		)
 
-	def paper_algo_trade(self, ticker, buysell, budget = 1000):
+	def paper_algo_trade(self, ticker, buysell, budget = 2000):
 		price = sf.get_live_price(ticker)
 
 		if buysell == 'buy':
-			holdings = int(self.paper_account.get_position(ticker).qty)
+			holdings = 0
+			try:
+				holdings = int(self.paper_account.get_position(ticker).qty)
+			except Exception:
+				holdings = 0
 			value = holdings * sf.get_live_price(ticker)
 			if value <= 6000:
 				bp = float(self.paper_account.get_account().buying_power)
-				bp -= price * 10
-				budget -= price * 10
-				bought = 0 
-				while bp >= price*10 and budget >= price*10:
-					bp -= price * 10
-					budget -= price * 10
-					self.paper_trade(ticker, 10, 'buy', 'market', 'gtc')
-					bought += 10
-				print('Bought: {} * {}'.format(ticker, bought))
-			else:
-				print('Bought: {} * {}'.format(ticker, 0))
-
+				bp -= price * 2
+				budget -= price * 2
+				amount = int(budget / price)
+				buy_price = amount*price
+				bought = 0
+				if bp >= buy_price and budget >= buy_price:
+					# print('buy: ' + ticker)
+					self.paper_trade(ticker, amount, 'buy', 'market', 'gtc')
+					bought += amount
+				if bought != 0:
+					print('Bought: {} * {}'.format(ticker, bought))
 
 		elif buysell == 'sell':
 			sold = 0
-			for i in range(5):
+			sellamount = 0
+
+			try:
+				sellamount = int(int(self.paper_account.get_position(ticker).qty) / 10)
+			except Exception as e:
+				pass
+				#print('sell_paper: {}'.format(e))
+
+			if sellamount != 0:
 				try:
-					if int(self.paper_account.get_position(ticker).qty) >= 10:
-						self.paper_trade(ticker, 10, 'sell', 'market', 'gtc')
-						sold += 10
-						print(1)
+					self.paper_trade(ticker, sellamount, 'sell', 'market', 'gtc')
+					sold += sellamount
 				except Exception as e:
-					break
+					pass
+					#print('sell_paper (1): {}'.format(e))
 			print('Sold: {} * {}'.format(ticker, sold))
 
 
@@ -95,6 +106,7 @@ class Bot():
 		while runtime5 > 0:
 			runtime5 -= 1
 			if self.paper_account.get_clock().is_open:
+				print('Runtime: {}'.format(runtime5))
 				self.run_bot(paper = True)
 			else:
 				print('Market Closed')
@@ -104,15 +116,18 @@ class Bot():
 	def run_bot(self, paper = False, webull = False):
 		for s in self.watchlist:
 			rsi = self.get_rsi(s)
-			if rsi >= 70:
-				if paper:
-					self.paper_algo_trade(s, 'sell')
-			elif rsi <= 30:
-				if paper:
-					self.paper_algo_trade(s, 'buy')
-			else:
-				pass
-				# print('Held: {}'.format(s))
+			try:
+				if rsi >= 70:
+					if paper:
+						self.paper_algo_trade(s, 'sell')
+				elif rsi <= 30:
+					if paper:
+						self.paper_algo_trade(s, 'buy')
+				else:
+					pass
+					# print('Held: {}'.format(s))
+			except Exception as e:
+				print(str(e) + ": " + s)
 		print('\n')
 
 	def add_stock(self, *stock_ticker):
@@ -140,7 +155,7 @@ class Bot():
 				holdings = int(self.paper_account.get_position(i).qty)
 			except Exception:
 				holdings = 0
-			print("{}:\tRSI: {}\tHoldings: {}\t\tPrice: ${}".format(i, self.get_rsi(i), holdings, price))
+			print("{}:\tRSI: {}\tHoldings: {}\t\tPrice: ${}\tValue: {}".format(i, self.get_rsi(i), holdings, price, round(price * holdings, 2)))
 		print('\n')
 
 	def get_rsi(self, ticker):
