@@ -1,3 +1,2 @@
 # stock_bot
-I'm still testing the stock bot using Alpaca paper trade.
-
+Algo Trade Bot Using a Simple RSI algorithm.
